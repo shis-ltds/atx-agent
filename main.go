@@ -18,6 +18,7 @@ import (
 	"os/signal"
 	"os/user"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -51,6 +52,7 @@ var (
 	repo          = "atx-agent"
 	listenAddr    string
 	daemonLogPath = "/sdcard/atx-agent.daemon.log"
+	httpServerAddr string
 
 	rotationPublisher   = broadcast.NewBroadcaster(1)
 	minicapSocketPath   = "@minicap"
@@ -511,6 +513,32 @@ func killAgentProcess() error {
 	return nil
 }
 
+func pushHttpServer(url string, addr string) (string, error) {
+	deviceInfo := getDeviceInfo()
+	reflect.ValueOf(deviceInfo).Elem().Field(8).SetString(addr)
+	str, err := json.Marshal(deviceInfo)
+	if err != nil {
+		return "", err
+	}
+	log.Infof("device info: %s", string(str))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(str))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{}
+    resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return "", errors.New("push http error code: " + resp.Status)
+	}
+	body, _ := ioutil.ReadAll(resp.Body)
+	return string(body), nil
+}
+
 func main() {
 	kingpin.Version(version)
 	kingpin.CommandLine.HelpFlag.Short('h')
@@ -526,6 +554,7 @@ func main() {
 	fStop := cmdServer.Flag("stop", "stop server").Bool()
 	cmdServer.Flag("addr", "listen port").Default(":7912").StringVar(&listenAddr) // Create on 2017/09/12
 	cmdServer.Flag("log", "log file path when in daemon mode").StringVar(&daemonLogPath)
+	cmdServer.Flag("http", "push http server url").StringVar(&httpServerAddr)
 	// fServerURL := cmdServer.Flag("server", "server url").Short('t').String()
 	fNoUiautomator := cmdServer.Flag("nouia", "do not start uiautoamtor when start").Bool()
 
@@ -612,6 +641,16 @@ func main() {
 		fmt.Printf("Device IP: %v\n", outIp)
 	} else {
 		fmt.Printf("Internet is not connected.")
+	}
+
+	// 自动化测试IP自动上报
+	if httpServerAddr != "" {
+		log.Infof("IP地址上报 [%s]\n", httpServerAddr)
+		info, err := pushHttpServer(httpServerAddr,outIp.String())
+		if err != nil {
+			log.Error(err)
+		}
+		log.Infof("IP地址上报结果 [%s] \n", info)
 	}
 
 	listener, err := net.Listen("tcp", listenAddr)
