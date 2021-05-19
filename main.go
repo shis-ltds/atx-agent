@@ -47,8 +47,8 @@ var (
 		},
 	}
 
-	version       = "dev"
-	owner         = "openatx"
+	version       = "1.0.0-alpha.1"
+	owner         = "pzdf/openatx"
 	repo          = "atx-agent"
 	listenAddr    string
 	daemonLogPath = "/sdcard/atx-agent.daemon.log"
