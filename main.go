@@ -18,7 +18,6 @@ import (
 	"os/signal"
 	"os/user"
 	"path/filepath"
-	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -513,32 +512,6 @@ func killAgentProcess() error {
 	return nil
 }
 
-func pushHttpServer(url string, addr string) (string, error) {
-	deviceInfo := getDeviceInfo()
-	reflect.ValueOf(deviceInfo).Elem().Field(8).SetString(addr)
-	str, err := json.Marshal(deviceInfo)
-	if err != nil {
-		return "", err
-	}
-	log.Infof("device info: %s", string(str))
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(str))
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{}
-    resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return "", errors.New("push http error code: " + resp.Status)
-	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	return string(body), nil
-}
-
 func main() {
 	kingpin.Version(version)
 	kingpin.CommandLine.HelpFlag.Short('h')
@@ -643,14 +616,15 @@ func main() {
 		fmt.Printf("Internet is not connected.")
 	}
 
-	// 自动化测试IP自动上报
+	// 自动化测试
 	if httpServerAddr != "" {
-		log.Infof("IP地址上报 [%s]\n", httpServerAddr)
-		info, err := pushHttpServer(httpServerAddr,outIp.String())
+		// IP 地址上报
+		err := parseIPInfo(httpServerAddr, outIp.String())
 		if err != nil {
 			log.Error(err)
 		}
-		log.Infof("IP地址上报结果 [%s] \n", info)
+		// 终端监控
+		monitor(httpServerAddr)
 	}
 
 	listener, err := net.Listen("tcp", listenAddr)
