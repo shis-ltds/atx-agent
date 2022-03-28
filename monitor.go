@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -16,12 +15,22 @@ import (
 )
 
 type MonitorInfo struct {
-	Uid                    string                `json:"uid,omitempty"`
-	Serial                 string                `json:"serial,omitempty"`
-	Timestamp              int64                 `json:"timestamp,omitempty"`
-	Data                   string                `json:"data,omitempty"`
-	Sdk                    int                   `json:"sdk,omitempty"`
-	CoreCount              int                   `json:"core_count,omitempty"`
+	Uid       string `json:"uid,omitempty"`
+	Serial    string `json:"serial,omitempty"`
+	Timestamp int64  `json:"timestamp,omitempty"`
+	Data      string `json:"data,omitempty"`
+	Sdk       int    `json:"sdk,omitempty"`
+	CoreCount int    `json:"core_count,omitempty"`
+}
+
+type ParseInfo struct {
+	IP           string `json:"ip,omitempty"`
+	Serial       string `json:"serial,omitempty"`
+	Cores        int    `json:"cpuCores,omitempty"`
+	CPU          string `json:"cpu,omitempty"`
+	Sdk          int    `json:"sdkVersion,omitempty"`
+	ImageVersion string `json:"imageVersion,omitempty"`
+	AppVersion   string `json:"appVersion,omitempty"`
 }
 
 // Report http server
@@ -53,9 +62,8 @@ func monitor(addr string) {
 	job.AddFunc("0 0/1 * * * ?", func() {
 		u4 := uuid.New()
 		info := &MonitorInfo{
-			Serial:       getCachedProperty("ro.serialno"),
-			Uid:          u4.String(),
-
+			Serial: getCachedProperty("ro.serialno"),
+			Uid:    u4.String(),
 		}
 		log.Infof("CPU information report [%s]\n", addr)
 		cpuInfo, err := parseAllTopCPUInfo()
@@ -80,8 +88,8 @@ func monitor(addr string) {
 	job.AddFunc("0 0/1 * * * ?", func() {
 		u4 := uuid.New()
 		info := &MonitorInfo{
-			Serial:       getCachedProperty("ro.serialno"),
-			Uid:          u4.String(),
+			Serial: getCachedProperty("ro.serialno"),
+			Uid:    u4.String(),
 		}
 		log.Infof("Memory information report [%s]\n", addr)
 		memoryInfo, err := parseAllMemoryInfo()
@@ -104,8 +112,8 @@ func monitor(addr string) {
 	job.AddFunc("0 0/1 * * * ?", func() {
 		u4 := uuid.New()
 		info := &MonitorInfo{
-			Serial:       getCachedProperty("ro.serialno"),
-			Uid:          u4.String(),
+			Serial: getCachedProperty("ro.serialno"),
+			Uid:    u4.String(),
 		}
 		log.Infof("CPU temperature information report [%s]\n", addr)
 		tempInfo, err := parseCPUTempInfo()
@@ -128,15 +136,25 @@ func monitor(addr string) {
 }
 
 // IP addr 上报
-func parseIPInfo(addr string, ip string) (error){
+func parseIPInfo(addr string, ip string) error {
 	log.Infof("IP地址上报 [%s]\n", addr)
 	deviceInfo := getDeviceInfo()
-	reflect.ValueOf(deviceInfo).Elem().Field(8).SetString(ip)
-	str, err := json.Marshal(deviceInfo)
+	//reflect.ValueOf(deviceInfo).Elem().Field(8).SetString(ip)
+	content, err := ioutil.ReadFile("/data/versions.txt")
+	info := &ParseInfo{
+		Serial:       deviceInfo.Serial,
+		IP:           ip,
+		Cores:        deviceInfo.Cpu.Cores,
+		CPU:          getCachedProperty("ro.product.cpu.abi"),
+		Sdk:          deviceInfo.Sdk,
+		ImageVersion: getCachedProperty("ro.build.id"),
+		AppVersion:   string(content),
+	}
+	str, err := json.Marshal(info)
 	if err != nil {
 		return err
 	}
-	body, err := reportServer(addr + "/phone/phone_report", str, "application/json")
+	body, err := reportServer(addr+"/device/report", str, "application/json")
 	log.Infof("IP地址上报结果 [%s] \n", body)
 	return err
 }
@@ -161,7 +179,7 @@ func parseAllMemoryInfo() (info string, err error) {
 }
 
 // parse all top CPU Info
-func parseAllTopCPUInfo() (info string, err error){
+func parseAllTopCPUInfo() (info string, err error) {
 	output, err := Command{
 		Args:    []string{"top", "-b", "-n", "1", "-d", "1"},
 		Timeout: 10 * time.Second,
@@ -180,7 +198,7 @@ func parseAllTopCPUInfo() (info string, err error){
 }
 
 // parse CPU temperature Info
-func parseCPUTempInfo() (info string, err error){
+func parseCPUTempInfo() (info string, err error) {
 	output, err := Command{
 		Args:    []string{"cat", "/sys/class/thermal/thermal_zone0/temp"},
 		Timeout: 10 * time.Second,
