@@ -5,22 +5,18 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/robfig/cron"
 )
 
 type MonitorInfo struct {
-	Uid       string `json:"uid,omitempty"`
-	Serial    string `json:"serial,omitempty"`
-	Timestamp int64  `json:"timestamp,omitempty"`
-	Data      string `json:"data,omitempty"`
-	Sdk       int    `json:"sdk,omitempty"`
-	CoreCount int    `json:"core_count,omitempty"`
+	Timestamp   int64  `json:"timestamp,omitempty"`
+	CpuInfo     string `json:"cpu,omitempty"`
+	MemoryInfo  string `json:"mem,omitempty"`
+	CpuTempInfo string `json:"temp,omitempty"`
 }
 
 type ParseInfo struct {
@@ -31,6 +27,7 @@ type ParseInfo struct {
 	Sdk          int    `json:"sdkVersion,omitempty"`
 	ImageVersion string `json:"imageVersion,omitempty"`
 	AppVersion   string `json:"appVersion,omitempty"`
+	Memory       int    `json:"memory,omitempty"`
 }
 
 // Report http server
@@ -58,80 +55,29 @@ func reportServer(url string, content []byte, contentType string) (string, error
 func monitor(addr string) {
 	log.Infof("Enter monitoring report [%s]\n", addr)
 	job := cron.New()
-	// CPU 信息上报
+	// 信息上报
 	job.AddFunc("0 0/1 * * * ?", func() {
-		u4 := uuid.New()
+		memoryInfo, _ := parseAllMemoryInfo()
+		cpuInfo, _ := parseAllTopCPUInfo()
+		tempInfo, _ := parseCPUTempInfo()
 		info := &MonitorInfo{
-			Serial: getCachedProperty("ro.serialno"),
-			Uid:    u4.String(),
+			Timestamp:   time.Now().Unix(),
+			CpuInfo:     cpuInfo,
+			MemoryInfo:  memoryInfo,
+			CpuTempInfo: tempInfo,
 		}
-		log.Infof("CPU information report [%s]\n", addr)
-		cpuInfo, err := parseAllTopCPUInfo()
-		if err != nil {
-			log.Error(err)
-		}
-		info.Timestamp = time.Now().Unix()
-		info.Data = cpuInfo
-		info.CoreCount = CPUCoreCount()
-		info.Sdk, _ = strconv.Atoi(getCachedProperty("ro.build.version.sdk"))
 		str, err := json.Marshal(info)
 		if err != nil {
 			log.Error(err)
 		}
-		cpu, err := reportServer(addr+"/monitoring/post_cpu_info", str, "application/json")
+		monitor, err :=
+			reportServer(addr+"/device/perf/"+getCachedProperty("ro.serialno"), str, "application/json")
 		if err != nil {
 			log.Error(err)
 		}
-		log.Infof("CPU information report result [%s]\n", cpu)
+		log.Infof("monitor report result [%s]\n", monitor)
 	})
-	// 内存信息上报
-	job.AddFunc("0 0/1 * * * ?", func() {
-		u4 := uuid.New()
-		info := &MonitorInfo{
-			Serial: getCachedProperty("ro.serialno"),
-			Uid:    u4.String(),
-		}
-		log.Infof("Memory information report [%s]\n", addr)
-		memoryInfo, err := parseAllMemoryInfo()
-		if err != nil {
-			log.Error(err)
-		}
-		info.Timestamp = time.Now().Unix()
-		info.Data = memoryInfo
-		str, err := json.Marshal(info)
-		if err != nil {
-			log.Error(err)
-		}
-		memory, err := reportServer(addr+"/monitoring/post_mem_info", str, "application/json")
-		if err != nil {
-			log.Error(err)
-		}
-		log.Infof("Memory information report result [%s]\n", memory)
-	})
-	// CPU 温度信息上报
-	job.AddFunc("0 0/1 * * * ?", func() {
-		u4 := uuid.New()
-		info := &MonitorInfo{
-			Serial: getCachedProperty("ro.serialno"),
-			Uid:    u4.String(),
-		}
-		log.Infof("CPU temperature information report [%s]\n", addr)
-		tempInfo, err := parseCPUTempInfo()
-		if err != nil {
-			log.Error(err)
-		}
-		info.Timestamp = time.Now().Unix()
-		info.Data = tempInfo
-		str, err := json.Marshal(info)
-		if err != nil {
-			log.Error(err)
-		}
-		temp, err := reportServer(addr+"/monitoring/post_temp_info", str, "application/json")
-		if err != nil {
-			log.Error(err)
-		}
-		log.Infof("CPU temperature information report result [%s]\n", temp)
-	})
+
 	go job.Start()
 }
 
@@ -149,6 +95,7 @@ func parseIPInfo(addr string, ip string) error {
 		Sdk:          deviceInfo.Sdk,
 		ImageVersion: getCachedProperty("ro.build.id"),
 		AppVersion:   string(content),
+		Memory:       deviceInfo.Memory.Total,
 	}
 	str, err := json.Marshal(info)
 	if err != nil {

@@ -28,7 +28,6 @@ require (
 	github.com/kardianos/osext v0.0.0-20170510131534-ae77be60afb1 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/kr/binarydist v0.1.0 // indirect
-	github.com/kr/pty v1.1.8
 	github.com/levigross/grequests v0.0.0-20190130132859-37c80f76a0da
 	github.com/mholt/archiver v2.0.1-0.20171012052341-26cf5bb32d07+incompatible
 	github.com/mitchellh/ioprogress v0.0.0-20180201004757-6a23b12fa88e
@@ -40,12 +39,9 @@ require (
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/procfs v0.0.2
 	github.com/robfig/cron v1.2.0
-	github.com/robfig/cron/v3 v3.0.1
 	github.com/rs/cors v1.6.0
 	github.com/sevlyar/go-daemon v0.1.4
 	github.com/shogo82148/androidbinary v1.0.1
-	github.com/shurcooL/httpfs v0.0.0-20190707220628-8d4bc4ba7749 // indirect
-	github.com/shurcooL/vfsgen v0.0.0-20200824052919-0d455de96546 // indirect
 	github.com/sirupsen/logrus v1.6.0
 	github.com/stretchr/testify v1.4.0
 	github.com/ulikunitz/xz v0.5.5 // indirect
