@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -127,8 +128,14 @@ func parseAllMemoryInfo() (info string, err error) {
 
 // parse all top CPU Info
 func parseAllTopCPUInfo() (info string, err error) {
+	cmd := []string{"top", "-b", "-n", "1", "-d", "1"}
+	sdk, err := strconv.Atoi(getCachedProperty("ro.build.version.sdk"))
+	// 兼容低版本 Android
+	if sdk < 28 {
+		cmd = append(cmd[:1], cmd[2:]...)
+	}
 	output, err := Command{
-		Args:    []string{"top", "-b", "-n", "1", "-d", "1"},
+		Args:    cmd,
 		Timeout: 10 * time.Second,
 	}.CombinedOutputString()
 	if err != nil {
