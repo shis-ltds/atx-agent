@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -114,12 +113,7 @@ func parseAllMemoryInfo() (info string, err error) {
 		Timeout: 60 * time.Second,
 	}.CombinedOutputString()
 	if err != nil {
-		return
-	}
-
-	index := strings.Index(output, "Applications Memory Usage")
-	if index == -1 {
-		err = errors.New("dumpsys meminfo has no [Applications Memory Usage]")
+		log.Error(err)
 		return
 	}
 	info = output
@@ -139,12 +133,7 @@ func parseAllTopCPUInfo() (info string, err error) {
 		Timeout: 10 * time.Second,
 	}.CombinedOutputString()
 	if err != nil {
-		return
-	}
-
-	index := strings.Index(output, "Tasks")
-	if index == -1 {
-		err = errors.New("top CPU has no [Tasks]")
+		log.Error(err)
 		return
 	}
 	info = output
@@ -158,6 +147,7 @@ func parseCPUTempInfo() (info string, err error) {
 		Timeout: 10 * time.Second,
 	}.CombinedOutputString()
 	if err != nil {
+		log.Error(err)
 		return
 	}
 
