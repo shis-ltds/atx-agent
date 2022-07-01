@@ -2,11 +2,11 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
+	"github.com/stretchr/testify/assert"
 	"net"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/assert"
 )
 
 type MockConn struct {
@@ -67,4 +67,13 @@ $ 25654`),
 	drainTouchRequests(conn, reqC)
 	output := string(conn.buffer.Bytes())
 	assert.Equal(t, "d 1 1080 1920 255\nc\nm 3 540 960 255\nu 4\n", output)
+}
+
+func TestJsonRes(t *testing.T) {
+	data := "{\"code\":2000,\"data\":{\"url\":\"http://192.168.1.154:5000/report/perf\"},\"message\":\"Success\"}"
+
+	if err := json.Unmarshal([]byte(data), &res); err != nil {
+		log.Infof("IP地址上报失败 [%s] err [%s] \n", data, err.Error())
+	}
+	assert.Equal(t, res.Code, 2000)
 }
